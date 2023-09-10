@@ -24,7 +24,7 @@ class SegmentEmbedding(nn.Embedding):
 
 
 class ALBERTEmbedding(nn.Module):
-    def __init__(self, vocab_size, max_len, pad_id, embed_size, hidden_size, drop_prob=0.1):
+    def __init__(self, vocab_size, max_len, pad_id, embed_size, drop_prob=0.1):
         super().__init__()
 
         self.token_embed = TokenEmbedding(
@@ -32,11 +32,10 @@ class ALBERTEmbedding(nn.Module):
         )
         self.pos_embed = PositionEmbedding(max_len=max_len, embed_size=embed_size)
         self.seg_embed = SegmentEmbedding(embed_size)
-        self.proj = nn.Linear(embed_size, hidden_size)
 
         self.pos = torch.arange(max_len, dtype=torch.long).unsqueeze(0)
 
-        self.norm = nn.LayerNorm(hidden_size)
+        self.norm = nn.LayerNorm(embed_size)
         self.embed_drop = nn.Dropout(drop_prob)
 
     def forward(self, token_ids, seg_ids):
@@ -45,7 +44,6 @@ class ALBERTEmbedding(nn.Module):
         x = self.token_embed(token_ids)
         x += self.pos_embed(self.pos[:, : seq_len].repeat(b, 1).to(token_ids.device))
         x += self.seg_embed(seg_ids)
-        x = self.proj(x)
 
         x = self.norm(x)
         x = self.embed_drop(x)
@@ -146,12 +144,13 @@ class TransformerLayer(nn.Module):
 
 class TransformerBlock(nn.Module):
     def __init__(
-        self, n_layers, n_heads, hidden_size, mlp_size, drop_prob
+        self, n_layers, n_heads, embed_size, hidden_size, mlp_size, drop_prob
     ):
         super().__init__()
 
         self.n_layers = n_layers
 
+        self.proj = nn.Linear(embed_size, hidden_size)
         self.layer = TransformerLayer(
             n_heads=n_heads,
             hidden_size=hidden_size,
@@ -160,6 +159,7 @@ class TransformerBlock(nn.Module):
         )
 
     def forward(self, x, mask):
+        x = self.proj(x)
         for _ in range(self.n_layers):
             x = self.layer(x, mask=mask)
         return x
@@ -190,12 +190,12 @@ class ALBERT(nn.Module):
             max_len=max_len,
             pad_id=pad_id,
             embed_size=embed_size,
-            hidden_size=hidden_size,
             drop_prob=drop_prob,
         )
         self.tf_block = TransformerBlock(
             n_layers=n_layers,
             n_heads=n_heads,
+            embed_size=embed_size,
             hidden_size=hidden_size,
             mlp_size=mlp_size,
             drop_prob=drop_prob,
@@ -213,37 +213,39 @@ class ALBERT(nn.Module):
         return x
 
 
+class MLMHead(nn.Module):
+    def __init__(self, vocab_size, hidden_size=768):
+        super().__init__()
+
+        self.proj = nn.Linear(hidden_size, vocab_size)
+
+    def forward(self, x):
+        x = self.proj(x)
+        return x
+
+
+class SOPHead(nn.Module):
+    def __init__(self, hidden_size=768, drop_prob=0.1):
+        super().__init__()
+
+        self.head_drop = nn.Dropout(drop_prob)
+        self.proj = nn.Linear(hidden_size, 2)
+
+    def forward(self, x):
+        x = x[:, 0, :]
+        x = self.head_drop(x)
+        x = self.proj(x)
+        return x
+
+
 if __name__ == "__main__":
     model = ALBERT(
         vocab_size=30_000,
         max_len=512,
         pad_id=0,
     )
-    out = model(token_ids=token_ids, seg_ids=seg_ids)
     print_number_of_parameters(model)
-
-
-# class MLMHead(nn.Module):
-#     def __init__(self, vocab_size, hidden_size=768):
-#         super().__init__()
-
-#         self.proj = nn.Linear(hidden_size, vocab_size)
-
-#     def forward(self, x):
-#         x = self.proj(x)
-#         return x
-
-
-# class NSPHead(nn.Module):
-#     def __init__(self, hidden_size=768):
-#         super().__init__()
-
-#         self.proj = nn.Linear(hidden_size, 2)
-
-#     def forward(self, x):
-#         x = x[:, 0, :]
-#         x = self.proj(x)
-#         return x
+    out = model(token_ids=token_ids, seg_ids=seg_ids)
 
 
 # class QuestionAnsweringHead(nn.Module):

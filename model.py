@@ -220,6 +220,7 @@ if __name__ == "__main__":
         pad_id=0,
     )
     out = model(token_ids=token_ids, seg_ids=seg_ids)
+    print_number_of_parameters(model)
 
 
 # class MLMHead(nn.Module):

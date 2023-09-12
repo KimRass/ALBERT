@@ -126,7 +126,8 @@ if __name__ == "__main__":
     #     eps=config.EPS,
     #     weight_decay=config.WEIGHT_DECAY,
     # )
-    optim = Lamb(model.parameters(), lr=config.LR)
+    optim = Adam(model.parameters(), lr=config.LR)
+    # optim = Lamb(model.parameters(), lr=config.LR)
 
     crit = PretrainingLoss(vocab_size=config.VOCAB_SIZE)
 

@@ -25,6 +25,16 @@ def _encode(x, tokenizer):
         return [token_ids[1: -1] for token_ids in encoding["input_ids"]]
 
 
+def _token_ids_to_segment_ids(token_ids, sep_id):
+    seg_ids = torch.zeros_like(token_ids, dtype=token_ids.dtype, device=token_ids.device)
+    is_sep = (token_ids == sep_id)
+    if is_sep.sum() == 2:
+        first_sep, second_sep = is_sep.nonzero()
+        # The positions from right after the first '[SEP]' token and to the second '[SEP]' token
+        seg_ids[first_sep + 1: second_sep + 1] = 1
+    return seg_ids
+
+
 class BookCorpusForALBERT(Dataset):
     def __init__(
         self,
@@ -74,4 +84,6 @@ class BookCorpusForALBERT(Dataset):
             idx += 1
 
         new_token_ids = self._to_bert_input(new_token_ids)
-        return new_token_ids
+        # return new_token_ids
+        seg_ids = _token_ids_to_segment_ids(token_ids=new_token_ids, sep_id=self.sep_id)
+        return new_token_ids, seg_ids

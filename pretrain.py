@@ -136,7 +136,8 @@ if __name__ == "__main__":
     accum_acc = 0
     step_cnt = 0
     while step < N_STEPS:
-        for gt_token_ids in tqdm(train_dl):
+        # for gt_token_ids in tqdm(train_dl):
+        for gt_token_ids, seg_ids in tqdm(train_dl):
             step += 1
 
             gt_token_ids = gt_token_ids.to(config.DEVICE)

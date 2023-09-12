@@ -257,8 +257,9 @@ class ALBERTForPretraining(nn.Module):
 
         self.mlm_head = MLMHead(vocab_size=vocab_size, hidden_size=hidden_size)
 
-    def forward(self, x):
-        x = self.albert(x)
+    # def forward(self, x):
+    def forward(self, token_ids, seg_ids):
+        x = self.albert(token_ids=token_ids, seg_ids=seg_ids)
         x = self.mlm_head(x)
         return x
 

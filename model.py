@@ -238,6 +238,32 @@ class SOPHead(nn.Module):
         return x
 
 
+class ALBERTForPretraining(nn.Module):
+    def __init__(
+        self, vocab_size, max_len, pad_id, n_layers, n_heads, embed_size, hidden_size, mlp_size
+    ):
+        super().__init__()
+
+        self.albert = ALBERT(
+            vocab_size=vocab_size,
+            max_len=max_len,
+            pad_id=pad_id,
+            n_layers=n_layers,
+            n_heads=n_heads,
+            embed_size=embed_size,
+            hidden_size=hidden_size,
+            mlp_size=mlp_size,
+        )
+
+        self.mlm_head = MLMHead(vocab_size=vocab_size, hidden_size=hidden_size)
+
+    def forward(self, x):
+        x = self.albert(x)
+        x = self.mlm_head(x)
+        return x
+
+
+
 if __name__ == "__main__":
     model = ALBERT(
         vocab_size=30_000,

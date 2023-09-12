@@ -4,7 +4,7 @@
 import torch
 
 import config
-from pretrain.wordpiece import load_bert_tokenizer
+from sentencepiece import load_fast_albert_tokenizer
 
 
 class MaskedLanguageModel(object):

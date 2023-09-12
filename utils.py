@@ -2,6 +2,8 @@ import torch
 from time import time
 from datetime import timedelta
 
+REGEX = r"[ㄱ-ㅎㅏ-ㅣ가-힣ぁ-ゔァ-ヴー々〆〤ｧ-ﾝﾞﾟ\u4e00-\u9fff]+"
+
 
 def get_elapsed_time(start_time):
     return timedelta(seconds=round(time() - start_time))

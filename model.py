@@ -165,7 +165,7 @@ class TransformerBlock(nn.Module):
         return x
 
 
-class ALBERT(nn.Module):
+class ALBERT(nn.Module): # Number of parameters: 11,089,920 (if `vocab_size = 30_000`)
     def __init__(
         self,
         vocab_size,
@@ -272,7 +272,7 @@ if __name__ == "__main__":
         pad_id=0,
     )
     print_number_of_parameters(model)
-    out = model(token_ids=token_ids, seg_ids=seg_ids)
+    # out = model(token_ids=token_ids, seg_ids=seg_ids)
 
 
 # class QuestionAnsweringHead(nn.Module):

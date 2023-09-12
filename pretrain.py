@@ -18,7 +18,7 @@ from utils import get_elapsed_time
 from model import ALBERTForPretraining
 from sentencepiece import load_fast_albert_tokenizer
 from bookcorpus import BookCorpusForALBERT
-from masked_language_model import MaskedLanguageModel
+from ngram_mlm import NgramMLM
 from loss import PretrainingLoss
 from evalute import get_mlm_acc
 
@@ -108,7 +108,7 @@ if __name__ == "__main__":
     if config.N_GPUS > 1:
         model = nn.DataParallel(model)
 
-    mlm = MaskedLanguageModel(
+    mlm = NgramMLM(
         vocab_size=config.VOCAB_SIZE,
         mask_id=tokenizer.mask_token_id,
         no_mask_token_ids=[
@@ -144,9 +144,10 @@ if __name__ == "__main__":
             step += 1
 
             gt_token_ids = gt_token_ids.to(config.DEVICE)
+            seg_ids = seg_ids.to(config.DEVICE)
             masked_token_ids, select_mask = mlm(gt_token_ids)
 
-            pred_token_ids = model(masked_token_ids)
+            pred_token_ids = model(token_ids=masked_token_ids, seg_ids=seg_ids)
             loss = crit(
                 pred_token_ids=pred_token_ids,
                 gt_token_ids=gt_token_ids,

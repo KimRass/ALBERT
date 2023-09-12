@@ -7,7 +7,7 @@ import config
 from sentencepiece import load_fast_albert_tokenizer
 
 
-class MaskedLanguageModel(object):
+class NgramMLM(object):
     def __init__(
         self,
         vocab_size,
@@ -62,7 +62,7 @@ class MaskedLanguageModel(object):
 
 if __name__ == "__main__":
     tokenizer = load_bert_tokenizer(config.VOCAB_PATH)
-    mlm = MaskedLanguageModel(
+    mlm = NgramMLM(
         vocab_size=config.VOCAB_SIZE,
         mask_id=tokenizer.token_to_id("[MASK]"),
         select_prob=config.SELECT_PROB,

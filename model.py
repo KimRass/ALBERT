@@ -214,13 +214,17 @@ class ALBERT(nn.Module): # Number of parameters: 11,089,920 (if `vocab_size = 30
 
 
 class MLMHead(nn.Module):
-    def __init__(self, vocab_size, hidden_size=768):
+    def __init__(self, vocab_size, embed_size, hidden_size):
         super().__init__()
 
-        self.proj = nn.Linear(hidden_size, vocab_size)
+        self.proj1 = nn.Linear(hidden_size, embed_size)
+        self.norm = nn.LayerNorm(embed_size)
+        self.proj2 = nn.Linear(embed_size, vocab_size)
 
     def forward(self, x):
-        x = self.proj(x)
+        x = self.proj1(x)
+        x = self.norm(x)
+        x = self.proj2(x)
         return x
 
 
@@ -255,7 +259,9 @@ class ALBERTForPretraining(nn.Module):
             mlp_size=mlp_size,
         )
 
-        self.mlm_head = MLMHead(vocab_size=vocab_size, hidden_size=hidden_size)
+        self.mlm_head = MLMHead(
+            vocab_size=vocab_size, embed_size=embed_size, hidden_size=hidden_size,
+        )
 
     # def forward(self, x):
     def forward(self, token_ids, seg_ids):

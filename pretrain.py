@@ -14,7 +14,7 @@ import matplotlib.pyplot as plt
 from pytorch_lamb import Lamb
 
 import config
-from utils import get_elapsed_time
+from utils import get_elapsed_time, print_number_of_parameters
 from model import ALBERTForPretraining
 from sentencepiece import load_fast_albert_tokenizer
 from bookcorpus import BookCorpusForALBERT
@@ -67,8 +67,8 @@ def resume(ckpt_path, model, optim):
 if __name__ == "__main__":
     # torch.autograd.set_detect_anomaly(True)
 
-    gc.collect()
-    torch.cuda.empty_cache()
+    # gc.collect()
+    # torch.cuda.empty_cache()
 
     args = get_args()
 
@@ -105,6 +105,7 @@ if __name__ == "__main__":
         hidden_size=config.HIDDEN_SIZE,
         mlp_size=config.MLP_SIZE,
     ).to(config.DEVICE)
+    print_number_of_parameters(model)
     if config.N_GPUS > 1:
         model = nn.DataParallel(model)
 
@@ -154,6 +155,7 @@ if __name__ == "__main__":
                 gt_token_ids=gt_token_ids,
                 select_mask=select_mask,
             )
+
             accum_loss += loss.item()
             loss /= N_ACCUM_STEPS
             loss.backward()

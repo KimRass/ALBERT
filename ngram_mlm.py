@@ -16,7 +16,7 @@ class NgramMLM(object):
         pad_id,
         mask_id,
         seq_len,
-        no_mask_token_ids={},
+        no_mask_token_ids=set(),
         ngram_sizes=[1, 2, 3],
         select_prob=0.15,
         mask_prob=0.8,

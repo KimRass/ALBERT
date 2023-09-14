@@ -87,3 +87,6 @@ class BookCorpusForALBERT(Dataset):
         # return new_token_ids
         seg_ids = _token_ids_to_segment_ids(token_ids=new_token_ids, sep_id=self.sep_id)
         return new_token_ids, seg_ids
+
+# "We always limit the maximum input length to 512, and randomly generate input sequences
+# shorter than 512 with a probability of 10%."

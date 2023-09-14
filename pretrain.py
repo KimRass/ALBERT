@@ -33,6 +33,35 @@ def get_args():
     args = parser.parse_args()
     return args
 
+def prepare_dl(tokenizer, epubtxt_dir, batch_size):
+    ngram_mlm = NgramMLM(
+        vocab_size=config.VOCAB_SIZE,
+        unk_id=tokenizer.unk_token_id,
+        cls_id=tokenizer.cls_token_id,
+        sep_id=tokenizer.sep_token_id,
+        pad_id=tokenizer.pad_token_id,
+        mask_id=tokenizer.mask_token_id,
+        seq_len=config.MAX_LEN,
+        select_prob=config.SELECT_PROB,
+        mask_prob=config.MASK_PROB,
+        randomize_prob=config.RANDOMIZE_PROB,
+    )
+    train_ds = BookCorpusForALBERT(
+        epubtxt_dir=epubtxt_dir,
+        tokenizer=tokenizer,
+        seq_len=config.MAX_LEN,
+        ngram_mlm=ngram_mlm,
+    )
+    train_dl = DataLoader(
+        train_ds,
+        batch_size=batch_size,
+        shuffle=True,
+        num_workers=config.N_WORKERS,
+        pin_memory=True,
+        drop_last=True,
+    )
+    return train_dl
+
 
 def save_checkpoint(step, model, optim, ckpt_path):
     Path(ckpt_path).parent.mkdir(parents=True, exist_ok=True)
@@ -81,44 +110,22 @@ if __name__ == "__main__":
     print(f"N_ACCUM_STEPS = {N_ACCUM_STEPS:,}")
 
     tokenizer = load_fast_albert_tokenizer(vocab_dir=config.VOCAB_DIR)
-    train_ds = BookCorpusForALBERT(
-        epubtxt_dir=args.epubtxt_dir,
-        tokenizer=tokenizer,
-        seq_len=config.MAX_LEN,
-    )
-    train_dl = DataLoader(
-        train_ds,
-        batch_size=args.batch_size,
-        shuffle=True,
-        num_workers=config.N_WORKERS,
-        pin_memory=True,
-        drop_last=True,
+    train_dl = prepare_dl(
+        tokenizer=tokenizer, epubtxt_dir=args.epubtxt_dir, batch_size=args.batch_size,
     )
 
     model = ALBERTForPretraining( # Smaller than BERT-Base
         vocab_size=config.VOCAB_SIZE,
         max_len=config.MAX_LEN,
-        pad_id=train_ds.pad_id,
+        pad_id=tokenizer.pad_token_id,
         n_layers=config.N_LAYERS,
         n_heads=config.N_HEADS,
         embed_size=config.EMBED_SIZE,
         hidden_size=config.HIDDEN_SIZE,
         mlp_size=config.MLP_SIZE,
     ).to(config.DEVICE)
-    print_number_of_parameters(model)
     if config.N_GPUS > 1:
         model = nn.DataParallel(model)
-
-    mlm = NgramMLM(
-        vocab_size=config.VOCAB_SIZE,
-        mask_id=tokenizer.mask_token_id,
-        no_mask_token_ids=[
-            train_ds.unk_id, train_ds.cls_id, train_ds.sep_id, train_ds.pad_id, train_ds.unk_id,
-        ],
-        select_prob=config.SELECT_PROB,
-        mask_prob=config.MASK_PROB,
-        randomize_prob=config.RANDOMIZE_PROB,
-    )
 
     # optim = Adam(
     #     model.parameters(),
@@ -141,13 +148,13 @@ if __name__ == "__main__":
     accum_acc = 0
     step_cnt = 0
     while step < N_STEPS:
-        # for gt_token_ids in tqdm(train_dl):
-        for gt_token_ids, seg_ids in tqdm(train_dl):
+        for gt_token_ids, masked_token_ids, select_mask, seg_ids in tqdm(train_dl):
             step += 1
 
             gt_token_ids = gt_token_ids.to(config.DEVICE)
+            masked_token_ids = masked_token_ids.to(config.DEVICE)
+            select_mask = select_mask.to(config.DEVICE)
             seg_ids = seg_ids.to(config.DEVICE)
-            masked_token_ids, select_mask = mlm(gt_token_ids)
 
             pred_token_ids = model(token_ids=masked_token_ids, seg_ids=seg_ids)
             loss = crit(

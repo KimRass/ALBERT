@@ -7,7 +7,6 @@ from pathlib import Path
 from tqdm import tqdm
 from transformers import AlbertTokenizerFast
 
-import config
 from utils import REGEX
 
 
@@ -48,14 +47,3 @@ def train_fast_albert_tokenizer(corpus, vocab_size, vocab_dir):
 def load_fast_albert_tokenizer(vocab_dir):
     tokenizer = AlbertTokenizerFast.from_pretrained(vocab_dir)
     return tokenizer
-
-
-if __name__ == "__main__":
-    args = get_args()
-
-    lines = parse(args.epubtxt_dir)
-    tokenizer = train_fast_albert_tokenizer(
-        corpus=lines,
-        vocab_size=config.VOCAB_SIZE,
-        vocab_dir=config.VOCAB_DIR,
-    )

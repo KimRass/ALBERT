@@ -7,6 +7,8 @@ import torch
 from torch.utils.data import Dataset
 
 from sentencepiece import parse
+from ngram_mlm import NgramMLM
+from sentencepiece import load_fast_albert_tokenizer
 
 os.environ["TOKENIZERS_PARALLELISM"] = "true"
 
@@ -19,10 +21,9 @@ def _encode(x, tokenizer):
         return_token_type_ids=False,
         return_attention_mask=False,
     )
-    if isinstance(x, str):
-        return encoding["input_ids"][1: -1]
-    else:
-        return [token_ids[1: -1] for token_ids in encoding["input_ids"]]
+    tokens = encoding.tokens()[1: -1]
+    token_ids = encoding["input_ids"][1: -1]
+    return tokens, token_ids
 
 
 def _token_ids_to_segment_ids(token_ids, sep_id):
@@ -41,11 +42,13 @@ class BookCorpusForALBERT(Dataset):
         epubtxt_dir,
         tokenizer,
         seq_len,
+        ngram_mlm,
         mode="full_sentences",
     ):
         self.epubtxt_dir = epubtxt_dir
         self.tokenizer = tokenizer
         self.seq_len = seq_len
+        self.ngram_mlm = ngram_mlm
         self.mode = mode
 
         self.unk_id = tokenizer.unk_token_id
@@ -65,28 +68,57 @@ class BookCorpusForALBERT(Dataset):
         return len(self.lines)
 
     def __getitem__(self, idx):
-        new_token_ids = list()
+        gt_token_ids = list()
+        new_tokens = list()
         prev_doc = self.lines[idx][0]
         while True:
             if idx >= len(self.lines) - 1:
                 break
                 
             cur_doc, line = self.lines[idx]
-            token_ids = _encode(line, tokenizer=self.tokenizer)
-            if len(new_token_ids) + len(token_ids) >= self.seq_len - 2:
+            tokens, token_ids = _encode(line, tokenizer=self.tokenizer)
+            # print(tokens)
+            if len(gt_token_ids) + len(token_ids) >= self.seq_len - 2:
                 break
 
             if prev_doc != cur_doc:
-                new_token_ids.append(self.sep_id)
+                gt_token_ids.append(self.sep_id)
 
-            new_token_ids.extend(token_ids)
+            gt_token_ids.extend(token_ids)
+            new_tokens.extend(tokens)
             prev_doc = cur_doc
             idx += 1
 
-        new_token_ids = self._to_bert_input(new_token_ids)
-        # return new_token_ids
-        seg_ids = _token_ids_to_segment_ids(token_ids=new_token_ids, sep_id=self.sep_id)
-        return new_token_ids, seg_ids
+        gt_token_ids = self._to_bert_input(gt_token_ids)
+        seg_ids = _token_ids_to_segment_ids(token_ids=gt_token_ids, sep_id=self.sep_id)
+        masked_token_ids, select_mask = self.ngram_mlm(tokens=tokens, gt_token_ids=gt_token_ids)
+        return gt_token_ids, masked_token_ids, select_mask, seg_ids
 
 # "We always limit the maximum input length to 512, and randomly generate input sequences
 # shorter than 512 with a probability of 10%."
+
+if __name__ == "__main__":
+    tokenizer = load_fast_albert_tokenizer(
+        "/Users/jongbeomkim/Desktop/workspace/albert_from_scratch/bookcorpus_vocab"
+    )
+    global ngram_mlm
+    ngram_mlm = NgramMLM(
+        vocab_size=100,
+        unk_id=tokenizer.unk_token_id,
+        cls_id=tokenizer.cls_token_id,
+        sep_id=tokenizer.sep_token_id,
+        pad_id=tokenizer.pad_token_id,
+        mask_id=tokenizer.mask_token_id,
+        seq_len=512,
+        no_mask_token_ids=[0, 1, 2, 3, 4],
+    )
+    ds = BookCorpusForALBERT(
+        epubtxt_dir="/Users/jongbeomkim/Documents/datasets/bookcorpus_subset/epubtxt",
+        tokenizer=tokenizer,
+        seq_len=512,
+    )
+    gt_token_ids, seg_ids, masked_token_ids, select_mask = ds[0]
+    gt_token_ids.shape, seg_ids.shape, masked_token_ids.shape, select_mask.shape
+    gt_token_ids
+    masked_token_ids
+    select_mask

@@ -35,7 +35,7 @@ class NgramMLM(object):
         self.mask_prob = mask_prob
         self.randomize_prob = randomize_prob
 
-        no_mask_token_ids += {unk_id, cls_id, sep_id, pad_id, mask_id}
+        no_mask_token_ids |= {unk_id, cls_id, sep_id, pad_id, mask_id}
 
         recips = np.array([1 / gram for gram in ngram_sizes])
         self.probs = recips / sum(recips)

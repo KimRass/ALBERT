@@ -42,6 +42,7 @@ def prepare_dl(tokenizer, epubtxt_dir, batch_size):
         pad_id=tokenizer.pad_token_id,
         mask_id=tokenizer.mask_token_id,
         seq_len=config.MAX_LEN,
+        ngram_sizes=config.NGRAM_SIZES,
         mask_prob=config.MASK_TOKEN_PROB,
         mask_token_prob=config.MASK_TOKEN_PROB,
         random_token_prob=config.RANDOM_TOKEN_PROB,

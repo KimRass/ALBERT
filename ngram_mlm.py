@@ -116,7 +116,10 @@ if __name__ == "__main__":
     len(gt_token_ids), mlm_mask.shape
 
 
-    # "We generate masked inputs for the MLM targets using n-gram masking (Joshi et al., 2019), with the length of each n-gram mask selected randomly. The probability for the length n is given by p(n) = 1=n PN k=1 1=k We set the maximum length of n-gram (i.e., n) to be 3 (i.e., the MLM target can consist of up to a 3-gram of complete words, such as 'White House correspondents')"
+    # "We generate masked inputs for the MLM targets using n-gram masking, with the length of
+    # each n-gram mask selected randomly. The probability for the length `n` is given by
+    # $$p(n) = \frac{1 / n}{\sum^{N}_{k = 1} 1 / k}$$
+
 
     # "Given a sequence of tokensX = (x1; x2; : : : ; xn), we select a subset of tokens Y   X by iteratively sampling spans of text until the masking budget (e.g. 15% of X) has been spent. At each iteration, we first sample a span length (number of words) from a geometric distribution `   Geo(p), which is skewed towards shorter spans. We then randomly (uniformly) select the starting point for the span to be masked. We always sample a sequence of complete words (instead of subword tokens) and the starting point must be the beginning of one word."
 

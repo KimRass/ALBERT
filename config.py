@@ -20,6 +20,9 @@ MLP_SIZE = HIDDEN_SIZE * 4
 DROP_PROB = 0.1
 
 ### Masked Language Model
+# We set the maximum length of n-gram (i.e., $n$) to be 3 (i.e., the MLM target can consist of
+# up to a 3-gram of complete words, such as 'White House correspondents')"
+NGRAM_SIZES = [1, 2, 3]
 MASK_PROB = 0.15
 MASK_TOKEN_PROB = 0.8
 RANDOM_TOKEN_PROB = 0.1

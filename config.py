@@ -20,9 +20,9 @@ MLP_SIZE = HIDDEN_SIZE * 4
 DROP_PROB = 0.1
 
 ### Masked Language Model
-SELECT_PROB = 0.15
-MASK_PROB = 0.8
-RANDOMIZE_PROB = 0.1
+MASK_PROB = 0.15
+MASK_TOKEN_PROB = 0.8
+RANDOM_TOKEN_PROB = 0.1
 
 ### Optimizer
 # "All the model updates use a LAMB optimizer with learning rate 0.00176."

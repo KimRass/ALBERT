@@ -68,7 +68,7 @@ class NgramMLM(object):
             if all([
                 tokens[start_idx][0] == "▁",
                 not select_mask[start_idx - 1],
-                not select_mask[min(self.seq_len - 1, start_idx + ngram_size)],
+                not select_mask[min(len(select_mask) - 1, start_idx + ngram_size)],
             ]):
                 select_mask[start_idx: start_idx + ngram_size] = True
 

@@ -88,6 +88,7 @@ class BookCorpusForALBERT(Dataset):
             new_tokens.extend(tokens)
             prev_doc = cur_doc
             idx += 1
+            print(idx, len(new_tokens))
 
         gt_token_ids = self._to_bert_input(gt_token_ids)
         seg_ids = _token_ids_to_segment_ids(token_ids=gt_token_ids, sep_id=self.sep_id)

@@ -68,7 +68,7 @@ class BookCorpusForALBERT(Dataset):
         return len(self.lines)
 
     def __getitem__(self, idx):
-        print(f"init_idx: {idx}")
+        # print(f"init_idx: {idx}")
         gt_token_ids = list()
         new_tokens = list()
         prev_doc = self.lines[idx][0]
@@ -93,9 +93,8 @@ class BookCorpusForALBERT(Dataset):
 
         gt_token_ids = self._to_bert_input(gt_token_ids)
         seg_ids = _token_ids_to_segment_ids(token_ids=gt_token_ids, sep_id=self.sep_id)
-        # masked_token_ids, mlm_mask = self.ngram_mlm(tokens=tokens, gt_token_ids=gt_token_ids)
-        # return gt_token_ids, masked_token_ids, mlm_mask, seg_ids
-        return gt_token_ids, seg_ids
+        masked_token_ids, mlm_mask = self.ngram_mlm(tokens=tokens, gt_token_ids=gt_token_ids)
+        return gt_token_ids, masked_token_ids, mlm_mask, seg_ids
 
 # "We always limit the maximum input length to 512, and randomly generate input sequences
 # shorter than 512 with a probability of 10%."

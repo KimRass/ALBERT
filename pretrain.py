@@ -11,7 +11,7 @@ from time import time
 from tqdm.auto import tqdm
 import argparse
 import matplotlib.pyplot as plt
-from pytorch_lamb import Lamb
+# from pytorch_lamb import Lamb
 
 import config
 from utils import get_elapsed_time, print_number_of_parameters
@@ -45,7 +45,7 @@ def prepare_dl(tokenizer, epubtxt_dir, batch_size):
         mask_id=tokenizer.mask_token_id,
         seq_len=config.MAX_LEN,
         ngram_sizes=config.NGRAM_SIZES,
-        mask_prob=config.MASK_TOKEN_PROB,
+        mask_prob=config.MASK_PROB,
         mask_token_prob=config.MASK_TOKEN_PROB,
         random_token_prob=config.RANDOM_TOKEN_PROB,
     )
@@ -117,7 +117,7 @@ if __name__ == "__main__":
         tokenizer=tokenizer, epubtxt_dir=args.epubtxt_dir, batch_size=args.batch_size,
     )
 
-    model = ALBERTForPretraining( # Smaller than BERT-Base
+    model = ALBERTForPretraining(
         vocab_size=config.VOCAB_SIZE,
         max_len=config.MAX_LEN,
         pad_id=tokenizer.pad_token_id,
@@ -144,47 +144,46 @@ if __name__ == "__main__":
     accum_acc = 0
     step_cnt = 0
     while step < N_STEPS:
-        # for gt_token_ids, masked_token_ids, mlm_mask, seg_ids in tqdm(train_dl):
-        for gt_token_ids, seg_ids in train_dl:
+        for gt_token_ids, masked_token_ids, mlm_mask, seg_ids in tqdm(train_dl):
             step += 1
 
-    #         gt_token_ids = gt_token_ids.to(config.DEVICE)
-    #         masked_token_ids = masked_token_ids.to(config.DEVICE)
-    #         mlm_mask = mlm_mask.to(config.DEVICE)
-    #         seg_ids = seg_ids.to(config.DEVICE)
+            gt_token_ids = gt_token_ids.to(config.DEVICE)
+            masked_token_ids = masked_token_ids.to(config.DEVICE)
+            mlm_mask = mlm_mask.to(config.DEVICE)
+            seg_ids = seg_ids.to(config.DEVICE)
 
-    #         pred_token_ids = model(token_ids=masked_token_ids, seg_ids=seg_ids)
-    #         loss = crit(
-    #             pred_token_ids=pred_token_ids,
-    #             gt_token_ids=gt_token_ids,
-    #             mlm_mask=mlm_mask,
-    #         )
+            pred_token_ids = model(token_ids=masked_token_ids, seg_ids=seg_ids)
+            loss = crit(
+                pred_token_ids=pred_token_ids,
+                gt_token_ids=gt_token_ids,
+                mlm_mask=mlm_mask,
+            )
 
-    #         accum_loss += loss.item()
-    #         loss /= N_ACCUM_STEPS
-    #         loss.backward()
+            accum_loss += loss.item()
+            loss /= N_ACCUM_STEPS
+            loss.backward()
 
-    #         if step % N_ACCUM_STEPS == 0:
-    #             optim.step()
-    #             optim.zero_grad()
+            if step % N_ACCUM_STEPS == 0:
+                optim.step()
+                optim.zero_grad()
 
-    #         acc = get_mlm_acc(pred_token_ids=pred_token_ids, gt_token_ids=gt_token_ids)
-    #         accum_acc += acc
-    #         step_cnt += 1
+            acc = get_mlm_acc(pred_token_ids=pred_token_ids, gt_token_ids=gt_token_ids)
+            accum_acc += acc
+            step_cnt += 1
 
-    #         if (step % (config.N_CKPT_SAMPLES // args.batch_size) == 0) or (step == N_STEPS):
-    #             print(f"[ {step:,}/{N_STEPS:,} ][ {get_elapsed_time(start_time)} ]", end="")
-    #             print(f"[ MLM loss: {accum_loss / step_cnt:.4f} ]", end="")
-    #             print(f"[ MLM acc: {accum_acc / step_cnt:.3f} ]")
+            if (step % (config.N_CKPT_SAMPLES // args.batch_size) == 0) or (step == N_STEPS):
+                print(f"[ {step:,}/{N_STEPS:,} ][ {get_elapsed_time(start_time)} ]", end="")
+                print(f"[ MLM loss: {accum_loss / step_cnt:.4f} ]", end="")
+                print(f"[ MLM acc: {accum_acc / step_cnt:.3f} ]")
 
-    #             start_time = time()
-    #             accum_loss = 0
-    #             accum_acc = 0
-    #             step_cnt = 0
+                start_time = time()
+                accum_loss = 0
+                accum_acc = 0
+                step_cnt = 0
 
-    #             cur_ckpt_path = config.CKPT_DIR/f"bookcorpus_step_{step}.pth"
-    #             save_checkpoint(step=step, model=model, optim=optim, ckpt_path=cur_ckpt_path)
-    #             if prev_ckpt_path.exists():
-    #                 prev_ckpt_path.unlink()
-    #             prev_ckpt_path = cur_ckpt_path
-    # print("Completed pre-training.")
+                cur_ckpt_path = config.CKPT_DIR/f"bookcorpus_step_{step}.pth"
+                save_checkpoint(step=step, model=model, optim=optim, ckpt_path=cur_ckpt_path)
+                if prev_ckpt_path.exists():
+                    prev_ckpt_path.unlink()
+                prev_ckpt_path = cur_ckpt_path
+    print("Completed pre-training.")

@@ -68,7 +68,6 @@ class NgramMLM(object):
         mlm_mask = torch.zeros(size=(len(tokens),), dtype=bool)
         while self._get_mask_ratio(mlm_mask) < self.mask_prob:
             ngram_size = self._sample_ngram_size()
-            print(mlm_mask.sum() / mlm_mask.numel())
             start_idx = random.sample(
                 [
                     idx for idx, token in enumerate(tokens)
@@ -78,8 +77,8 @@ class NgramMLM(object):
             )[0]
             if all([
                 tokens[start_idx][0] == "▁",
-                not mlm_mask[start_idx - 1],
-                not mlm_mask[min(len(mlm_mask) - 1, start_idx + ngram_size)],
+                not mlm_mask[start_idx - 1].item(),
+                not mlm_mask[min(len(mlm_mask) - 1, start_idx + ngram_size)].item(),
             ]):
                 mlm_mask[start_idx: start_idx + ngram_size] = True
 
@@ -93,18 +92,15 @@ class NgramMLM(object):
         # 80% of the time."
         rand_tensor = torch.rand(masked_token_ids.shape, device=masked_token_ids.device)
         mask_mask = mlm_mask & (rand_tensor < self.mask_token_prob)
-        # `mask_mask.sum() / mlm_mask.sum() ~= 0.8`
+        ### `mask_mask.sum() / mlm_mask.sum() ~= 0.8`
         masked_token_ids.masked_fill_(mask=mask_mask, value=self.mask_id)
 
         # "(2) a random token 10% of the time
         # (3) the unchanged $i$-th token 10% of the time."
         rand_tensor = torch.rand(masked_token_ids.shape, device=masked_token_ids.device)
-        randomize_mask = all([
-            mlm_mask,
-            (rand_tensor >= self.mask_token_prob),
-            (rand_tensor < (self.mask_token_prob + self.random_token_prob)),
-        ])
-        # `randomize_mask.sum() / mlm_mask.sum() ~= 0.1`
+        randomize_mask = mlm_mask & (rand_tensor >= self.mask_token_prob)
+        randomize_mask &= (rand_tensor < (self.mask_token_prob + self.random_token_prob))
+        ### `randomize_mask.sum() / mlm_mask.sum() ~= 0.1`
         random_token_ids = torch.randint(
             high=self.vocab_size,
             size=torch.Size((randomize_mask.sum(),)),

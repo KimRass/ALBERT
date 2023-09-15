@@ -42,13 +42,11 @@ class BookCorpusForALBERT(Dataset):
         epubtxt_dir,
         tokenizer,
         seq_len,
-        ngram_mlm,
         mode="full_sentences",
     ):
         self.epubtxt_dir = epubtxt_dir
         self.tokenizer = tokenizer
         self.seq_len = seq_len
-        self.ngram_mlm = ngram_mlm
         self.mode = mode
 
         self.unk_id = tokenizer.unk_token_id
@@ -65,8 +63,8 @@ class BookCorpusForALBERT(Dataset):
         return torch.as_tensor(token_ids)
 
     def _pad(self, x):
-        x = [False] + x + [False]
-        x += [False] * (self.seq_len - len(x))
+        x = [-1] + x + [-1]
+        x += [-1] * (self.seq_len - len(x))
         return torch.as_tensor(x)
 
     def __len__(self):
@@ -76,6 +74,7 @@ class BookCorpusForALBERT(Dataset):
         # print(f"init_idx: {idx}")
         gt_token_ids = list()
         is_start_ls = list()
+        temp = list()
         prev_doc = self.lines[idx][0]
         while True:
             if idx >= len(self.lines) - 1:
@@ -83,7 +82,7 @@ class BookCorpusForALBERT(Dataset):
                 
             cur_doc, line = self.lines[idx]
             tokens, token_ids = _encode(line, tokenizer=self.tokenizer)
-            is_start = [token[0] == "▁" for token in tokens]
+            is_start = [1 if token[0] == "▁" else 0 for token in tokens]
             if len(gt_token_ids) + len(token_ids) >= self.seq_len - 2:
                 break
 
@@ -92,17 +91,17 @@ class BookCorpusForALBERT(Dataset):
 
             gt_token_ids.extend(token_ids)
             is_start_ls.extend(is_start)
+            temp.extend(tokens)
             prev_doc = cur_doc
             idx += 1
 
         gt_token_ids = self._to_bert_input(gt_token_ids)
         is_start_ls = self._pad(is_start_ls)
-        # print(gt_token_ids.shape, is_start_ls.shape)
-        # print(is_start_ls)
         seg_ids = _token_ids_to_segment_ids(token_ids=gt_token_ids, sep_id=self.sep_id)
-        return gt_token_ids, seg_ids
-        # masked_token_ids, mlm_mask = self.ngram_mlm(tokens=tokens, gt_token_ids=gt_token_ids)
-        # return gt_token_ids, masked_token_ids, mlm_mask, seg_ids
+        # if is_start_ls.sum().item() < 100:
+        #     print(temp)
+        # print(is_start_ls)
+        return gt_token_ids, seg_ids, is_start_ls
 
 # "We always limit the maximum input length to 512, and randomly generate input sequences
 # shorter than 512 with a probability of 10%."

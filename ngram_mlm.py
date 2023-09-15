@@ -40,7 +40,8 @@ class NgramMLM(object):
         # "We generate masked inputs for the MLM targets using n-gram masking, with the length of
         # each n-gram mask selected randomly. The probability for the length `n` is given by
         # $$p(n) = \frac{1 / n}{\sum^{N}_{k = 1} 1 / k}$$
-        recips = np.array([1 / gram for gram in ngram_sizes])
+        # ngram_sizes = [1, 2, 3]
+        recips = np.array([1 / ngram_size for ngram_size in ngram_sizes])
         self.probs = recips / sum(recips)
 
         self.false = torch.zeros(size=(1,), dtype=bool)
@@ -48,14 +49,11 @@ class NgramMLM(object):
     def _sample_ngram_size(self):
         return np.random.choice(self.ngram_sizes, p=self.probs)
 
-    def _get_mask_ratio(self, mlm_mask):
-        return (sum(mlm_mask) / len(mlm_mask)).item()
+    def _get_is_not_pad(self, gt_token_ids):
+        return (gt_token_ids != self.pad_id)
 
-    def _pad(self, mlm_mask):
-        # mlm_mask = torch.zeros(size=(128,), dtype=bool)
-        new_mlm_mask = [False] + mlm_mask.tolist() + [False]
-        new_mlm_mask += [False] * (self.seq_len - len(new_mlm_mask))
-        return torch.as_tensor(new_mlm_mask)
+    def _get_mask_ratio(self, mlm_mask, is_not_pad):
+        return ((mlm_mask & is_not_pad).sum() / (is_not_pad).sum()).item()
 
     # "Given a sequence of tokens $X = (x_{1}, x_{2}, \ldots, x_{n})$, we select a subset of
     # tokens $Y \subseteq X$ by iteratively sampling spans of text until the masking budget
@@ -64,39 +62,28 @@ class NgramMLM(object):
     # We then randomly (uniformly) select the starting point for the span to be masked. We always
     # sample a sequence of complete words (instead of subword tokens) and the starting point must
     # be the beginning of one word."
-    def _get_mlm_mask(self, tokens):
-        mlm_mask = torch.zeros(size=(len(tokens),), dtype=bool)
-        while self._get_mask_ratio(mlm_mask) < self.mask_prob:
+    def _get_mlm_mask(self, gt_token_ids, is_start):
+        is_not_pad = self._get_is_not_pad(gt_token_ids)
+        mlm_mask = torch.zeros_like(is_start, dtype=bool)
+        while self._get_mask_ratio(mlm_mask=mlm_mask, is_not_pad=is_not_pad) < self.mask_prob:
             ngram_size = self._sample_ngram_size()
-            start_idx = random.sample(
-                [
-                    idx for idx, token in enumerate(tokens)
-                    if (token not in self.no_mask_token_ids) and (not mlm_mask[idx])
-                ],
-            k=1,
-            )[0]
-            if all([
-                tokens[start_idx][0] == "▁",
-                not mlm_mask[start_idx - 1].item(),
-                not mlm_mask[min(len(mlm_mask) - 1, start_idx + ngram_size)].item(),
-            ]):
-                mlm_mask[start_idx: start_idx + ngram_size] = True
-
-        mlm_mask = self._pad(mlm_mask)
+            batch, pos = is_start.nonzero(as_tuple=True)
+            idx = random.randrange(batch.shape[0])
+            start_pos = pos[idx].item()
+            end_pos = min(self.seq_len - 1, start_pos + ngram_size)
+            mlm_mask[batch[idx].item(), start_pos: end_pos] = True
+            is_start[batch[idx].item(), start_pos - 1: end_pos + 1] = False
+        # print(self._get_mask_ratio(mlm_mask=mlm_mask, is_not_pad=is_not_pad))
         return mlm_mask
 
     def _replace_some_tokens(self, gt_token_ids, mlm_mask):
         masked_token_ids = gt_token_ids.clone()
 
-        # "If the $i$-th token is chosen, we replace the $i$-th token with (1) the [MASK] token
-        # 80% of the time."
         rand_tensor = torch.rand(masked_token_ids.shape, device=masked_token_ids.device)
         mask_mask = mlm_mask & (rand_tensor < self.mask_token_prob)
         ### `mask_mask.sum() / mlm_mask.sum() ~= 0.8`
         masked_token_ids.masked_fill_(mask=mask_mask, value=self.mask_id)
 
-        # "(2) a random token 10% of the time
-        # (3) the unchanged $i$-th token 10% of the time."
         rand_tensor = torch.rand(masked_token_ids.shape, device=masked_token_ids.device)
         randomize_mask = mlm_mask.clone()
         randomize_mask &= (rand_tensor >= self.mask_token_prob)
@@ -110,8 +97,8 @@ class NgramMLM(object):
         masked_token_ids[randomize_mask.nonzero(as_tuple=True)] = random_token_ids
         return masked_token_ids
 
-    def __call__(self, tokens, gt_token_ids):
-        mlm_mask = self._get_mlm_mask(tokens)
+    def __call__(self, gt_token_ids, is_start):
+        mlm_mask = self._get_mlm_mask(gt_token_ids=gt_token_ids, is_start=is_start)
         masked_token_ids = self._replace_some_tokens(
             gt_token_ids=gt_token_ids, mlm_mask=mlm_mask,
         )

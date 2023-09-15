@@ -64,13 +64,18 @@ class BookCorpusForALBERT(Dataset):
         token_ids += [self.pad_id] * (self.seq_len - len(token_ids)) # Pad.
         return torch.as_tensor(token_ids)
 
+    def _pad(self, x):
+        x = [False] + x + [False]
+        x += [False] * (self.seq_len - len(x))
+        return torch.as_tensor(x)
+
     def __len__(self):
         return len(self.lines)
 
     def __getitem__(self, idx):
         # print(f"init_idx: {idx}")
         gt_token_ids = list()
-        new_tokens = list()
+        is_start_ls = list()
         prev_doc = self.lines[idx][0]
         while True:
             if idx >= len(self.lines) - 1:
@@ -78,7 +83,7 @@ class BookCorpusForALBERT(Dataset):
                 
             cur_doc, line = self.lines[idx]
             tokens, token_ids = _encode(line, tokenizer=self.tokenizer)
-            # is_start = [token[0] == "▁" for token in tokens]
+            is_start = [token[0] == "▁" for token in tokens]
             if len(gt_token_ids) + len(token_ids) >= self.seq_len - 2:
                 break
 
@@ -86,15 +91,18 @@ class BookCorpusForALBERT(Dataset):
                 gt_token_ids.append(self.sep_id)
 
             gt_token_ids.extend(token_ids)
-            new_tokens.extend(tokens)
+            is_start_ls.extend(is_start)
             prev_doc = cur_doc
             idx += 1
-            # print(idx, len(new_tokens))
 
         gt_token_ids = self._to_bert_input(gt_token_ids)
+        is_start_ls = self._pad(is_start_ls)
+        # print(gt_token_ids.shape, is_start_ls.shape)
+        # print(is_start_ls)
         seg_ids = _token_ids_to_segment_ids(token_ids=gt_token_ids, sep_id=self.sep_id)
-        masked_token_ids, mlm_mask = self.ngram_mlm(tokens=tokens, gt_token_ids=gt_token_ids)
-        return gt_token_ids, masked_token_ids, mlm_mask, seg_ids
+        return gt_token_ids, seg_ids
+        # masked_token_ids, mlm_mask = self.ngram_mlm(tokens=tokens, gt_token_ids=gt_token_ids)
+        # return gt_token_ids, masked_token_ids, mlm_mask, seg_ids
 
 # "We always limit the maximum input length to 512, and randomly generate input sequences
 # shorter than 512 with a probability of 10%."

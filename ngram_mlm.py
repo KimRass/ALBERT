@@ -98,7 +98,8 @@ class NgramMLM(object):
         # "(2) a random token 10% of the time
         # (3) the unchanged $i$-th token 10% of the time."
         rand_tensor = torch.rand(masked_token_ids.shape, device=masked_token_ids.device)
-        randomize_mask = mlm_mask & (rand_tensor >= self.mask_token_prob)
+        randomize_mask = mlm_mask.clone()
+        randomize_mask &= (rand_tensor >= self.mask_token_prob)
         randomize_mask &= (rand_tensor < (self.mask_token_prob + self.random_token_prob))
         ### `randomize_mask.sum() / mlm_mask.sum() ~= 0.1`
         random_token_ids = torch.randint(

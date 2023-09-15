@@ -23,6 +23,10 @@ DROP_PROB = 0.1
 # We set the maximum length of n-gram (i.e., $n$) to be 3 (i.e., the MLM target can consist of
 # up to a 3-gram of complete words, such as 'White House correspondents')"
 NGRAM_SIZES = [1, 2, 3]
+# "As in BERT, we also mask 15% of the tokens in total: replacing 80% of the masked tokens with
+# `"[MASK]"`, 10% with random tokens and 10% with the original tokens. However, we perform this
+# replacement at the span level and not for each token individually; i.e. all the tokens in a span
+# are replaced with [MASK]or sampled tokens."
 MASK_PROB = 0.15
 MASK_TOKEN_PROB = 0.8
 RANDOM_TOKEN_PROB = 0.1
@@ -37,10 +41,9 @@ if N_GPUS > 0:
     DEVICE = torch.device("cuda")
 else:
     DEVICE = torch.device("cpu")
-N_WORKERS = 4
 # "All the model updates use a batch size of 4096."
-# "We train all models for 125,000 steps."
 DEFAULT_BATCH_SIZE = 4096
+# "We train all models for 125,000 steps."
 DEFAULT_N_STEPS = 125_000
 CKPT_DIR = Path(__file__).parent/"pretraining_checkpoints"
 N_CKPT_SAMPLES = 100_000

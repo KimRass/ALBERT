@@ -37,6 +37,9 @@ class NgramMLM(object):
 
         no_mask_token_ids |= {unk_id, cls_id, sep_id, pad_id, mask_id}
 
+        # "We generate masked inputs for the MLM targets using n-gram masking, with the length of
+        # each n-gram mask selected randomly. The probability for the length `n` is given by
+        # $$p(n) = \frac{1 / n}{\sum^{N}_{k = 1} 1 / k}$$
         recips = np.array([1 / gram for gram in ngram_sizes])
         self.probs = recips / sum(recips)
 
@@ -54,6 +57,13 @@ class NgramMLM(object):
         new_mlm_mask += [False] * (self.seq_len - len(new_mlm_mask))
         return torch.as_tensor(new_mlm_mask)
 
+    # "Given a sequence of tokens $X = (x_{1}, x_{2}, \ldots, x_{n})$, we select a subset of
+    # tokens $Y \subseteq X$ by iteratively sampling spans of text until the masking budget
+    # (e.g. 15% of $X$) has been spent. At each iteration, we first sample a span length
+    # (number of words) from a geometric distribution, which is skewed towards shorter spans.
+    # We then randomly (uniformly) select the starting point for the span to be masked. We always
+    # sample a sequence of complete words (instead of subword tokens) and the starting point must
+    # be the beginning of one word."
     def _get_mlm_mask(self, tokens):
         mlm_mask = torch.zeros(size=(len(tokens),), dtype=bool)
         while self._get_mask_ratio(mlm_mask) < self.mask_prob:
@@ -116,11 +126,4 @@ if __name__ == "__main__":
     len(gt_token_ids), mlm_mask.shape
 
 
-    # "We generate masked inputs for the MLM targets using n-gram masking, with the length of
-    # each n-gram mask selected randomly. The probability for the length `n` is given by
-    # $$p(n) = \frac{1 / n}{\sum^{N}_{k = 1} 1 / k}$$
 
-
-    # "Given a sequence of tokensX = (x1; x2; : : : ; xn), we select a subset of tokens Y   X by iteratively sampling spans of text until the masking budget (e.g. 15% of X) has been spent. At each iteration, we first sample a span length (number of words) from a geometric distribution `   Geo(p), which is skewed towards shorter spans. We then randomly (uniformly) select the starting point for the span to be masked. We always sample a sequence of complete words (instead of subword tokens) and the starting point must be the beginning of one word."
-
-    # "As in BERT, we also mask 15% of the tokens in total: replacing 80% of the masked tokens with [MASK], 10% with random tokens and 10% with the original tokens. However, we perform this replacement at the span level and not for each token individually; i.e. all the tokens in a span are replaced with [MASK]or sampled tokens."

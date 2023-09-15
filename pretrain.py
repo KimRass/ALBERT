@@ -27,11 +27,13 @@ def get_args():
     parser = argparse.ArgumentParser()
 
     parser.add_argument("--epubtxt_dir", type=str, required=True)
-    parser.add_argument("--batch_size", type=int, required=False, default=8192) # "Batch Size"
+    parser.add_argument("--batch_size", type=int, required=True) # "Batch Size 8192"
+    parser.add_argument("--n_workers", type=int, required=True)
     parser.add_argument("--ckpt_path", type=str, required=False)
 
     args = parser.parse_args()
     return args
+
 
 def prepare_dl(tokenizer, epubtxt_dir, batch_size):
     ngram_mlm = NgramMLM(
@@ -57,7 +59,7 @@ def prepare_dl(tokenizer, epubtxt_dir, batch_size):
         train_ds,
         batch_size=batch_size,
         shuffle=True,
-        num_workers=config.N_WORKERS,
+        num_workers=args.n_workers,
         pin_memory=True,
         drop_last=True,
     )
@@ -103,7 +105,7 @@ if __name__ == "__main__":
     args = get_args()
 
     print(f"BATCH_SIZE = {args.batch_size}")
-    print(f"N_WORKERS = {config.N_WORKERS}")
+    print(f"N_WORKERS = {args.n_workers}")
     print(f"MAX_LEN = {config.MAX_LEN}")
     N_STEPS = (config.DEFAULT_BATCH_SIZE * config.DEFAULT_N_STEPS) // args.batch_size
     N_ACCUM_STEPS = config.DEFAULT_BATCH_SIZE // args.batch_size

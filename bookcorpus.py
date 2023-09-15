@@ -78,7 +78,7 @@ class BookCorpusForALBERT(Dataset):
                 
             cur_doc, line = self.lines[idx]
             tokens, token_ids = _encode(line, tokenizer=self.tokenizer)
-            # print(tokens)
+            # is_start = [token[0] == "▁" for token in tokens]
             if len(gt_token_ids) + len(token_ids) >= self.seq_len - 2:
                 break
 
@@ -89,7 +89,7 @@ class BookCorpusForALBERT(Dataset):
             new_tokens.extend(tokens)
             prev_doc = cur_doc
             idx += 1
-            print(idx, len(new_tokens))
+            # print(idx, len(new_tokens))
 
         gt_token_ids = self._to_bert_input(gt_token_ids)
         seg_ids = _token_ids_to_segment_ids(token_ids=gt_token_ids, sep_id=self.sep_id)

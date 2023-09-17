@@ -244,7 +244,16 @@ class SOPHead(nn.Module):
 
 class ALBERTForPretraining(nn.Module):
     def __init__(
-        self, vocab_size, max_len, pad_id, n_layers, n_heads, embed_size, hidden_size, mlp_size
+        self,
+        vocab_size,
+        max_len,
+        pad_id,
+        n_layers,
+        n_heads,
+        embed_size,
+        hidden_size,
+        mlp_size,
+        drop_prob,
     ):
         super().__init__()
 
@@ -257,17 +266,23 @@ class ALBERTForPretraining(nn.Module):
             embed_size=embed_size,
             hidden_size=hidden_size,
             mlp_size=mlp_size,
+            drop_prob=drop_prob,
         )
 
         self.mlm_head = MLMHead(
             vocab_size=vocab_size, embed_size=embed_size, hidden_size=hidden_size,
         )
+        self.sop_head = SOPHead(
+            hidden_size=hidden_size, drop_prob=drop_prob,
+        )
+            
 
     # def forward(self, x):
     def forward(self, token_ids, seg_ids):
         x = self.albert(token_ids=token_ids, seg_ids=seg_ids)
-        x = self.mlm_head(x)
-        return x
+        x1 = self.mlm_head(x)
+        x2 = self.sop_head(x)
+        return x1, x2
 
 
 

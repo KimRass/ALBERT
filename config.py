@@ -47,4 +47,4 @@ DEFAULT_BATCH_SIZE = 4096
 # "We train all models for 125,000 steps."
 DEFAULT_N_STEPS = 125_000
 CKPT_DIR = Path(__file__).parent/"pretraining_checkpoints"
-N_CKPT_SAMPLES = 100_000
+N_CKPT_SAMPLES = 50_000

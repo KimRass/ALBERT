@@ -62,18 +62,17 @@ class NgramMLM(object):
     # We then randomly (uniformly) select the starting point for the span to be masked. We always
     # sample a sequence of complete words (instead of subword tokens) and the starting point must
     # be the beginning of one word."
-    def _get_mlm_mask(self, gt_token_ids, is_start):
+    def _get_mlm_mask(self, gt_token_ids, is_start_token):
         is_not_pad = self._get_is_not_pad(gt_token_ids)
-        mlm_mask = torch.zeros_like(is_start, dtype=bool)
-        batch, pos = is_start.nonzero(as_tuple=True)
+        mlm_mask = torch.zeros_like(is_start_token, dtype=bool)
+        batch, pos = is_start_token.nonzero(as_tuple=True)
         while self._get_mask_ratio(mlm_mask=mlm_mask, is_not_pad=is_not_pad) < self.mask_prob:
             ngram_size = self._sample_ngram_size()
             idx = random.randrange(batch.shape[0])
             start_pos = pos[idx].item()
             end_pos = min(self.seq_len - 1, start_pos + ngram_size)
             mlm_mask[batch[idx].item(), start_pos: end_pos] = True
-            # is_start[batch[idx].item(), start_pos - 1: end_pos + 1] = False
-        # print(self._get_mask_ratio(mlm_mask=mlm_mask, is_not_pad=is_not_pad))
+            # is_start_token[batch[idx].item(), start_pos - 1: end_pos + 1] = False
         return mlm_mask
 
     def _replace_some_tokens(self, gt_token_ids, mlm_mask):
@@ -97,8 +96,8 @@ class NgramMLM(object):
         masked_token_ids[randomize_mask.nonzero(as_tuple=True)] = random_token_ids
         return masked_token_ids
 
-    def __call__(self, gt_token_ids, is_start):
-        mlm_mask = self._get_mlm_mask(gt_token_ids=gt_token_ids, is_start=is_start)
+    def __call__(self, gt_token_ids, is_start_token):
+        mlm_mask = self._get_mlm_mask(gt_token_ids=gt_token_ids, is_start_token=is_start_token)
         masked_token_ids = self._replace_some_tokens(
             gt_token_ids=gt_token_ids, mlm_mask=mlm_mask,
         )

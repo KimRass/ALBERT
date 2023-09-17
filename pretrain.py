@@ -1,6 +1,9 @@
 # References
     # https://github.com/skyday123/pytorch-lamb
 
+# "We always limit the maximum input length to 512, and randomly generate input sequences
+# shorter than 512 with a probability of 10%."
+
 import torch
 import torch.nn as nn
 from torch.utils.data import DataLoader
@@ -144,19 +147,16 @@ if __name__ == "__main__":
     accum_acc = 0
     step_cnt = 0
     while step < N_STEPS:
-        for gt_token_ids, seg_ids, is_start in tqdm(train_dl):
-        # for gt_token_ids, seg_ids, is_start in train_dl:
+        for is_start_token, gt_token_ids, seg_ids, gt_sent_order in tqdm(train_dl):
+        # for gt_token_ids, seg_ids, is_start_token in train_dl:
             step += 1
 
             gt_token_ids = gt_token_ids.to(config.DEVICE)
             seg_ids = seg_ids.to(config.DEVICE)
-            is_start = is_start.to(config.DEVICE)
+            gt_sent_order = gt_sent_order.to(config.DEVICE)
 
-            masked_token_ids, mlm_mask = ngram_mlm(gt_token_ids=gt_token_ids, is_start=is_start)
-            # print(gt_token_ids)
-            # print(masked_token_ids)
-            # print(mlm_mask)
-            pred_token_ids = model(token_ids=masked_token_ids, seg_ids=seg_ids)
+            masked_token_ids, mlm_mask = ngram_mlm(gt_token_ids=gt_token_ids, is_start_token=is_start_token)
+            pred_token_ids, pred_sent_order = model(token_ids=masked_token_ids, seg_ids=seg_ids)
             loss = crit(
                 pred_token_ids=pred_token_ids,
                 gt_token_ids=gt_token_ids,

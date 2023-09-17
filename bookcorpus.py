@@ -5,7 +5,9 @@
 import os
 import torch
 from torch.utils.data import Dataset
+import numpy as np
 
+import config
 from sentencepiece import parse
 from ngram_mlm import NgramMLM
 from sentencepiece import load_fast_albert_tokenizer
@@ -34,6 +36,85 @@ def _token_ids_to_segment_ids(token_ids, sep_id):
         # The positions from right after the first '[SEP]' token and to the second '[SEP]' token
         seg_ids[first_sep + 1: second_sep + 1] = 1
     return seg_ids
+
+
+def _is_word_start_token(token, word_start_tokens):
+    joined = "".join(token)
+    if (joined.startswith("▁") or joined.startswith("<")
+        or joined in word_start_tokens):
+        return True
+    else:
+        return False
+
+
+def _sample_mask(seg, mask_alpha=4, mask_beta=1, max_gram=3, goal_num_predict=77):
+    # try to n-gram masking SpanBERT(Joshi et al., 2019)
+    # 3-gram implementation
+    seg_len = len(seg)
+    mask = np.array([False] * seg_len, dtype="bool")
+
+    num_predict = 0
+
+    ngrams = np.arange(1, max_gram + 1, dtype=np.int64)
+    pvals = 1. / np.arange(1, max_gram + 1)
+    pvals /= pvals.sum(keepdims=True) # p(n) = 1/n / sigma(1/k)
+
+    cur_len = 0
+
+    while cur_len < seg_len:
+        if goal_num_predict is not None and num_predict >= goal_num_predict: break
+
+        n = np.random.choice(ngrams, p=pvals)
+        if goal_num_predict is not None:
+            n = min(n, goal_num_predict - num_predict)
+
+        # `mask_alpha` : number of tokens forming group
+        # `mask_beta` : number of tokens to be masked in each groups.
+        ctx_size = (n * mask_alpha) // mask_beta
+        l_ctx = np.random.choice(ctx_size)
+        r_ctx = ctx_size - l_ctx
+
+        # Find the start position of a complete token
+        beg = cur_len + l_ctx
+
+        while beg < seg_len and not _is_word_start_token(token=[seg[beg]], word_start_tokens=config.WORD_START_TOKENS):
+            beg += 1
+        if beg >= seg_len:
+            break
+
+        # Find the end position of the n-gram (start pos of the n+1-th gram)
+        end = beg + 1
+        cnt_ngram = 1
+        while end < seg_len:
+            if _is_word_start_token(token=[seg[beg]], word_start_tokens=config.WORD_START_TOKENS):
+                cnt_ngram += 1
+                if cnt_ngram > n:
+                    break
+            end += 1
+        if end >= seg_len:
+            break
+
+        # Update
+        mask[beg:end] = True
+        num_predict += end - beg
+
+        cur_len = end + r_ctx
+
+    while goal_num_predict is not None and num_predict < goal_num_predict:
+        i = np.random.randint(seg_len)
+        if not mask[i]:
+            mask[i] = True
+            num_predict += 1
+
+    tokens, masked_tokens, masked_pos = [], [], []
+    for i in range(seg_len):
+        if mask[i] and (seg[i] != '[CLS]' and seg[i] != '[SEP]'):
+            masked_tokens.append(seg[i])
+            masked_pos.append(i)
+            tokens.append('[MASK]')
+        else:
+            tokens.append(seg[i])
+    return masked_tokens, masked_pos, tokens
 
 
 class BookCorpusForALBERT(Dataset):
@@ -82,7 +163,7 @@ class BookCorpusForALBERT(Dataset):
                 
             cur_doc, line = self.lines[idx]
             tokens, token_ids = _encode(line, tokenizer=self.tokenizer)
-            is_start = [1 if token[0] == "▁" else 0 for token in tokens]
+            is_start = [1 if _is_word_start_token(token=token, word_start_tokens=config.WORD_START_TOKENS) else 0 for token in tokens]
             if len(gt_token_ids) + len(token_ids) >= self.seq_len - 2:
                 break
 
@@ -98,9 +179,10 @@ class BookCorpusForALBERT(Dataset):
         gt_token_ids = self._to_bert_input(gt_token_ids)
         is_start_ls = self._pad(is_start_ls)
         seg_ids = _token_ids_to_segment_ids(token_ids=gt_token_ids, sep_id=self.sep_id)
-        # if is_start_ls.sum().item() < 100:
-        #     print(temp)
-        # print(is_start_ls)
+        # masked_token_ids, masked_pos, tokens = _sample_mask(temp)
+        # print(masked_token_ids)
+        # print(masked_pos)
+        # print(tokens)
         return gt_token_ids, seg_ids, is_start_ls
 
 # "We always limit the maximum input length to 512, and randomly generate input sequences

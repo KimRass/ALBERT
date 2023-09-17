@@ -153,7 +153,9 @@ if __name__ == "__main__":
             is_start = is_start.to(config.DEVICE)
 
             masked_token_ids, mlm_mask = ngram_mlm(gt_token_ids=gt_token_ids, is_start=is_start)
-
+            # print(gt_token_ids)
+            # print(masked_token_ids)
+            # print(mlm_mask)
             pred_token_ids = model(token_ids=masked_token_ids, seg_ids=seg_ids)
             loss = crit(
                 pred_token_ids=pred_token_ids,

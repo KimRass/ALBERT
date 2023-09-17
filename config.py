@@ -6,6 +6,7 @@ from pathlib import Path
 VOCAB_SIZE = 30_522
 VOCAB_DIR = Path(__file__).parent/"bookcorpus_vocab"
 MAX_LEN = 512
+WORD_START_TOKENS = {"""!"#$%&\"()*+,-./:;?@[\\]^_`{|}~"""}
 
 ### Architecture
 # "Following Devlin et al. (2019), we set the feed-forward/filter size to be $4H$ and the number of

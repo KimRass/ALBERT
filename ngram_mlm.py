@@ -65,14 +65,14 @@ class NgramMLM(object):
     def _get_mlm_mask(self, gt_token_ids, is_start):
         is_not_pad = self._get_is_not_pad(gt_token_ids)
         mlm_mask = torch.zeros_like(is_start, dtype=bool)
+        batch, pos = is_start.nonzero(as_tuple=True)
         while self._get_mask_ratio(mlm_mask=mlm_mask, is_not_pad=is_not_pad) < self.mask_prob:
             ngram_size = self._sample_ngram_size()
-            batch, pos = is_start.nonzero(as_tuple=True)
             idx = random.randrange(batch.shape[0])
             start_pos = pos[idx].item()
             end_pos = min(self.seq_len - 1, start_pos + ngram_size)
             mlm_mask[batch[idx].item(), start_pos: end_pos] = True
-            is_start[batch[idx].item(), start_pos - 1: end_pos + 1] = False
+            # is_start[batch[idx].item(), start_pos - 1: end_pos + 1] = False
         # print(self._get_mask_ratio(mlm_mask=mlm_mask, is_not_pad=is_not_pad))
         return mlm_mask
 

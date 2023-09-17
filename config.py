@@ -3,7 +3,7 @@ from pathlib import Path
 
 ### Data
 # "Like BERT, we use a vocabulary size of 30,000, tokenized using SentencePiece."
-VOCAB_SIZE = 30_000
+VOCAB_SIZE = 30_522
 VOCAB_DIR = Path(__file__).parent/"bookcorpus_vocab"
 MAX_LEN = 512
 
